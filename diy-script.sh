@@ -22,7 +22,6 @@ function git_sparse_clone() {
 git clone --depth=1 -b main https://github.com/asvow/luci-app-tailscale package/luci-app-tailscale
 
 # 科学上网插件
-git clone --depth=1 https://github.com/fw876/helloworld package/luci-app-ssr-plus
 git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/openwrt-passwall
 git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall package/luci-app-passwall
 
