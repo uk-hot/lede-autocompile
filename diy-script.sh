@@ -1,25 +1,7 @@
 #!/bin/bash
 
-# 移除要替换的包
-rm -rf feeds/packages/net/mosdns
-rm -rf feeds/packages/net/smartdns
-rm -rf feeds/luci/applications/luci-app-mosdns
-rm -rf feeds/luci/applications/luci-app-smartdns
-rm -rf feeds/luci/applications/luci-app-vsftpd
-rm -rf feeds/luci/applications/luci-app-filetransfer
-
-# Git稀疏克隆，只克隆指定目录到本地
-function git_sparse_clone() {
-  branch="$1" repourl="$2" && shift 2
-  git clone --depth=1 -b $branch --single-branch --filter=blob:none --sparse $repourl
-  repodir=$(echo $repourl | awk -F '/' '{print $(NF)}')
-  cd $repodir && git sparse-checkout set $@
-  mv -f $@ ../package
-  cd .. && rm -rf $repodir
-}
-
 # 添加额外插件
-git clone --depth=1 -b main https://github.com/asvow/luci-app-tailscale package/luci-app-tailscale
+git clone --depth=1 -b master https://github.com/Tokisaki-Galaxy/luci-app-tailscale-community package/luci-app-tailscale
 
 # 科学上网插件
 git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/openwrt-passwall
