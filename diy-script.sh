@@ -7,6 +7,11 @@ git clone --depth=1 -b master https://github.com/Tokisaki-Galaxy/luci-app-tailsc
 git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/openwrt-passwall
 git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall package/luci-app-passwall
 
+# 移除 lede luci feed 自带的过期 luci-app-passwall (26.4.6)
+# 它没有 Iptables/Nftables_Transparent_Proxy 子菜单，且会和上游 26.5.3 抢 Kconfig
+# 名字空间，导致 select 链不触发，iptables-mod-socket/iprange 不会被装入固件
+rm -rf feeds/luci/applications/luci-app-passwall package/feeds/luci/luci-app-passwall
+
 # 修改默认IP
 sed -i 's/192.168.1.1/192.168.123.1/g' package/base-files/files/bin/config_generate
 

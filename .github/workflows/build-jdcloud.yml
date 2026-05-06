@@ -13,7 +13,7 @@ env:
   CONFIG_FILE: configs/jdcloud-re-sp-01b.config
   DIY_SCRIPT: diy-script.sh
   CACHE_TOOLCHAIN: true
-  UPLOAD_BIN_DIR: false
+  UPLOAD_BIN_DIR: true
   FIRMWARE_RELEASE: true
   FIRMWARE_TAG: JDCloud-RE-SP-01B
   TZ: Asia/Shanghai
