@@ -17,6 +17,9 @@ env:
   FIRMWARE_RELEASE: true
   FIRMWARE_TAG: JDCloud-RE-SP-01B
   TZ: Asia/Shanghai
+  # 强制所有 JavaScript-based actions 使用 Node 24 运行
+  # GitHub 计划于 2026-06-02 默认切换，此变量提前启用
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   Build:
@@ -232,10 +235,18 @@ jobs:
         keep_minimum_runs: 3
 
     - name: Remove Old Releases
-      uses: dev-drprasad/delete-older-releases@v0.3.4
       if: env.FIRMWARE_RELEASE == 'true' && !cancelled()
-      with:
-        keep_latest: 3
-        delete_tags: true
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        # 用 gh CLI 替代已停止维护的 dev-drprasad/delete-older-releases
+        # 仅删除当前 FIRMWARE_TAG 系列的旧 release，保留最新 3 个
+        keep=3
+        gh release list --repo "${{ github.repository }}" --limit 100 \
+          --json tagName,createdAt \
+          --jq "[.[] | select(.tagName == \"${{ matrix.target.name }}\")] | sort_by(.createdAt) | reverse | .[$keep:] | .[].tagName" \
+          | while read -r tag; do
+              [ -z "$tag" ] && continue
+              echo "Deleting old release: $tag"
+              gh release delete "$tag" --repo "${{ github.repository }}" --yes --cleanup-tag || true
+            done
