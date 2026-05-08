@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# 添加额外插件
-git clone --depth=1 -b master https://github.com/Tokisaki-Galaxy/luci-app-tailscale-community package/luci-app-tailscale
-
 # 科学上网插件
 git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall-packages package/openwrt-passwall
 git clone --depth=1 https://github.com/Openwrt-Passwall/openwrt-passwall package/luci-app-passwall
