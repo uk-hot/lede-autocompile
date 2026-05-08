@@ -18,9 +18,6 @@ env:
   FIRMWARE_RELEASE: true
   FIRMWARE_TAG: X86_64
   TZ: Asia/Shanghai
-  # 强制所有 JavaScript-based actions 使用 Node 24 运行
-  # GitHub 计划于 2026-06-02 默认切换，此变量提前启用
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   Build:
@@ -95,7 +92,7 @@ jobs:
         remove-codeql: true
 
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v6
 
     - name: Clone Source Code
       run: |
@@ -153,7 +150,7 @@ jobs:
         ./scripts/feeds install -a
 
     - name: Cache DL Package
-      uses: actions/cache@v4
+      uses: actions/cache@v5
       continue-on-error: true
       with:
         path: ${{ env.OPENWRT_PATH }}/dl
@@ -191,14 +188,19 @@ jobs:
         echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
         echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
 
-    - name: Cleanup DL Before Cache Save
+    - name: Cleanup Before Cache Save
       if: always()
       run: |
-        # 在 post-job 缓存保存前清理 dl 目录的死链接和不完整文件
-        # 避免 actions/cache 调用 tar 时因失效 symlink 报 exit code 2
-        cd "$OPENWRT_PATH/dl" 2>/dev/null || exit 0
-        find . -xtype l -delete 2>/dev/null || true
-        find . -type f -size -1024c -delete 2>/dev/null || true
+        # 在 post-job 缓存保存前清理失效 symlink/不完整文件
+        # 避免 actions/cache 与 cachewrtbuild 调用 tar 时报 exit code 2
+        if [ -d "$OPENWRT_PATH/dl" ]; then
+          find "$OPENWRT_PATH/dl" -xtype l -delete 2>/dev/null || true
+          find "$OPENWRT_PATH/dl" -type f -size -1024c -delete 2>/dev/null || true
+        fi
+        # cachewrtbuild 在 post-job 阶段对 staging_dir 打 tar，失效软链会触发 exit 2
+        for d in "$OPENWRT_PATH/staging_dir" "$OPENWRT_PATH/.ccache"; do
+          [ -d "$d" ] && find "$d" -xtype l -delete 2>/dev/null || true
+        done
 
     - name: Check Space Usage
       if: (!cancelled())
@@ -206,7 +208,7 @@ jobs:
 
     - name: Upload Bin Directory
       if: steps.compile.outputs.status == 'success' && env.UPLOAD_BIN_DIR == 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ env.SOURCE_REPO }}-bin-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.OPENWRT_PATH }}/bin
@@ -225,7 +227,7 @@ jobs:
 
     - name: Upload Firmware To Artifact
       if: steps.compile.outputs.status == 'success' && env.FIRMWARE_RELEASE != 'true'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: ${{ env.SOURCE_REPO }}-firmware-${{ env.DEVICE_TARGET }}-${{ env.DEVICE_SUBTARGET }}-${{ env.FILE_DATE }}
         path: ${{ env.FIRMWARE_PATH }}
