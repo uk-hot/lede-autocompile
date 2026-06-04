@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 env:
   REPO_URL: https://github.com/coolsnowwolf/lede
@@ -83,7 +84,7 @@ jobs:
     - name: Maximize Build Space
       uses: easimon/maximize-build-space@master
       with:
-        root-reserve-mb: 5120
+        root-reserve-mb: 8192
         swap-size-mb: 1024
         temp-reserve-mb: 100
         remove-dotnet: true
