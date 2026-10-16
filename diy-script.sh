@@ -18,20 +18,6 @@ for pkg in package/openwrt-passwall/*/; do
 	rm -rf "package/feeds/packages/$name"
 done
 
-# 升级 dnsmasq 2.91 -> 2.93 (passwall 建议 >= 2.92)
-# 保留 lede 的 Makefile/files 以兼容现有编译选项与 init 脚本，
-# 仅替换版本、哈希，以及 OpenWrt 针对 2.93 rebase 过的补丁
-DNSMASQ_DIR=package/network/services/dnsmasq
-DNSMASQ_PATCH_URL=https://raw.githubusercontent.com/openwrt/openwrt/71588f0d76aed5cc46cff8d17973959edd38deb9/$DNSMASQ_DIR/patches
-sed -i \
-	-e 's/^PKG_UPSTREAM_VERSION:=.*/PKG_UPSTREAM_VERSION:=2.93/' \
-	-e 's/^PKG_RELEASE:=.*/PKG_RELEASE:=1/' \
-	-e 's/^PKG_HASH:=.*/PKG_HASH:=0c00d4e5c97c8306e5fb932b348b34269c9c29a0e7df0e8e82958b407092bc19/' \
-	$DNSMASQ_DIR/Makefile
-for p in 100-remove-old-runtime-kernel-support.patch 200-ubus_dns.patch; do
-	curl -fsSL -o "$DNSMASQ_DIR/patches/$p" "$DNSMASQ_PATCH_URL/$p"
-done
-
 # 修改默认IP
 sed -i 's/192.168.1.1/192.168.123.1/g' package/base-files/files/bin/config_generate
 
