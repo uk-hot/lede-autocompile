@@ -154,8 +154,8 @@ jobs:
         make defconfig
         # 首轮：16线程并发下载
         make download -j16 || true
-        # 清理不完整文件(<1KB)
-        find dl -size -1024c -exec rm -f {} \; 2>/dev/null || true
+        # 清理不完整文件(<1KB)，仅限 dl 顶层，避免误删 go-mod-cache 中的小源文件
+        find dl -maxdepth 1 -type f -size -1024c -delete 2>/dev/null || true
         # 重试轮：单线程逐个下载失败的包，最多重试3次
         for i in 1 2 3; do
           echo "=== Download retry round $i ==="
@@ -163,7 +163,7 @@ jobs:
             echo "All downloads succeeded."
             break
           fi
-          find dl -size -1024c -exec rm -f {} \; 2>/dev/null || true
+          find dl -maxdepth 1 -type f -size -1024c -delete 2>/dev/null || true
           [ "$i" -eq 3 ] && { echo "Download failed after 3 retries"; exit 1; }
           sleep 10
         done
@@ -185,7 +185,7 @@ jobs:
         # 避免 actions/cache 与 cachewrtbuild 调用 tar 时报 exit code 2
         if [ -d "$OPENWRT_PATH/dl" ]; then
           find "$OPENWRT_PATH/dl" -xtype l -delete 2>/dev/null || true
-          find "$OPENWRT_PATH/dl" -type f -size -1024c -delete 2>/dev/null || true
+          find "$OPENWRT_PATH/dl" -maxdepth 1 -type f -size -1024c -delete 2>/dev/null || true
         fi
         # cachewrtbuild 在 post-job 阶段对 staging_dir 打 tar，失效软链会触发 exit 2
         for d in "$OPENWRT_PATH/staging_dir" "$OPENWRT_PATH/.ccache"; do
