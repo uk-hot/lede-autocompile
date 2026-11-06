@@ -18,6 +18,27 @@ for pkg in package/openwrt-passwall/*/; do
 	rm -rf "package/feeds/packages/$name"
 done
 
+# 升级 tailscale 至上游最新 release
+# lede packages feed 长期停在旧版 (1.84.2)，每次编译都不会自动更新
+# 若新版 go.mod 要求的 Go 高于 feed 自带 golang，则保留 feed 版本以免编译失败
+ts_mk=feeds/packages/net/tailscale/Makefile
+ts_ver=$(curl -fsSI https://github.com/tailscale/tailscale/releases/latest | grep -i '^location:' | sed 's#.*/tag/v##' | tr -d '\r')
+if [ -f "$ts_mk" ] && [ -n "$ts_ver" ]; then
+	go_mk=feeds/packages/lang/golang/golang/Makefile
+	go_have=$(awk -F ':=' '/^GO_VERSION_MAJOR_MINOR/{m=$2} /^GO_VERSION_PATCH/{p=$2} END{print m (p ? "." p : "")}' "$go_mk")
+	go_need=$(curl -fsSL "https://raw.githubusercontent.com/tailscale/tailscale/v$ts_ver/go.mod" | awk '/^go /{print $2}')
+	if [ -n "$go_need" ] && [ "$(printf '%s\n%s\n' "$go_need" "$go_have" | sort -V | tail -n1)" = "$go_have" ]; then
+		if ts_hash=$(set -o pipefail; curl -fsSL "https://codeload.github.com/tailscale/tailscale/tar.gz/v$ts_ver" | sha256sum | cut -d ' ' -f1); then
+			sed -i -e "s/^PKG_VERSION:=.*/PKG_VERSION:=$ts_ver/" \
+				-e "s/^PKG_RELEASE:=.*/PKG_RELEASE:=1/" \
+				-e "s/^PKG_HASH:=.*/PKG_HASH:=$ts_hash/" "$ts_mk"
+			echo "tailscale -> $ts_ver"
+		fi
+	else
+		echo "tailscale $ts_ver 需要 Go $go_need，feed 仅有 Go $go_have，保留 feed 版本"
+	fi
+fi
+
 # 修改默认IP
 sed -i 's/192.168.1.1/192.168.123.1/g' package/base-files/files/bin/config_generate
 
