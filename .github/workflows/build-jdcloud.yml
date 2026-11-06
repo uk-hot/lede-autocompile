@@ -153,6 +153,7 @@ jobs:
         echo "status=success" >> $GITHUB_OUTPUT
         echo "DATE=$(date +"%Y-%m-%d %H:%M:%S")" >> $GITHUB_ENV
         echo "FILE_DATE=$(date +"%Y.%m.%d")" >> $GITHUB_ENV
+        echo "TAG_DATE=$(date +"%Y%m%d-%H%M")" >> $GITHUB_ENV
 
     - name: Check Space Usage
       if: (!cancelled())
@@ -191,8 +192,8 @@ jobs:
       uses: ncipollo/release-action@v1
       with:
         name: R${{ env.DATE }} for ${{ matrix.target.name }}
-        allowUpdates: true
-        tag: ${{ matrix.target.name }}
+        # 每次编译用带时间戳的新 tag，旧版本由 Remove Old Releases 按数量清理
+        tag: ${{ matrix.target.name }}-${{ env.TAG_DATE }}
         token: ${{ secrets.GITHUB_TOKEN }}
         artifacts: ${{ env.FIRMWARE_PATH }}/*
         body: |
@@ -233,7 +234,7 @@ jobs:
         keep=3
         gh release list --repo "${{ github.repository }}" --limit 100 \
           --json tagName,createdAt \
-          --jq "[.[] | select(.tagName == \"${{ matrix.target.name }}\")] | sort_by(.createdAt) | reverse | .[$keep:] | .[].tagName" \
+          --jq "[.[] | select(.tagName == \"${{ matrix.target.name }}\" or (.tagName | startswith(\"${{ matrix.target.name }}-\")))] | sort_by(.createdAt) | reverse | .[$keep:] | .[].tagName" \
           | while read -r tag; do
               [ -z "$tag" ] && continue
               echo "Deleting old release: $tag"
