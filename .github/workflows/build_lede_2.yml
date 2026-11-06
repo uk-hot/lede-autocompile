@@ -210,9 +210,11 @@ jobs:
       run: |
         cd $OPENWRT_PATH/bin/targets/*/*
         cat sha256sums
-        cp $OPENWRT_PATH/.config build.config
         echo "KERNEL=$(cat *.manifest 2>/dev/null | grep ^kernel | cut -d- -f2 | tr -d ' ' || echo 'unknown')" >> $GITHUB_ENV
-        rm -rf packages feeds.buildinfo version.buildinfo *.manifest
+        # 只发布 home-lede/gongsi-lede 刷机用的 combined-efi 镜像 (BIOS/EFI 均可引导)，其余产物不上传
+        FIRMWARE_FILE=$(ls *-squashfs-combined-efi.img.gz)
+        echo "FIRMWARE_SHA256=$(sha256sum "$FIRMWARE_FILE" | cut -d ' ' -f1)" >> $GITHUB_ENV
+        find . -mindepth 1 -maxdepth 1 ! -name "$FIRMWARE_FILE" -exec rm -rf {} +
         echo "FIRMWARE_PATH=$PWD" >> $GITHUB_ENV
 
     - name: Upload Firmware To Artifact
@@ -230,6 +232,8 @@ jobs:
       with:
         name: R${{ env.DATE }} for ${{ matrix.target.name }}
         allowUpdates: true
+        # 同一 tag 覆盖更新时清掉旧产物，否则以前上传的其它文件会一直留着
+        removeArtifacts: true
         tag: ${{ matrix.target.name }}
         token: ${{ secrets.GITHUB_TOKEN }}
         artifacts: ${{ env.FIRMWARE_PATH }}/*
@@ -242,6 +246,7 @@ jobs:
           - 🚀 内核版本: ${{ env.KERNEL }}
           - 🌐 默认地址: 192.168.123.1
           - 🔑 默认密码: password
+          - 🔒 SHA256: `${{ env.FIRMWARE_SHA256 }}`
           ### 🧊 固件版本
           - 固件编译前最后一次➦[主源码](${{ env.REPO_URL }})更新记录
           - ${{ env.COMMIT_AUTHOR }}
