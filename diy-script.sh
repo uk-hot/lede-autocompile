@@ -78,6 +78,12 @@ rm -rf "$owrt_dir"
 pkg_bump feeds/packages/admin/htop/Makefile 3.5.3 edf25ee020a5263ffbef9eef5a8c14392bf74e78b3d5c8bc64d9343dd9a82605
 pkg_bump feeds/packages/net/miniupnpd-iptables/Makefile 2.3.11 91994b127da735b2c97f19992e34420648c0e8c4ace8a4bcb0596e7685c48678
 
+# luci-app-eqos 依赖里硬编码了 qualcommax 专属的 NSS 硬件 QoS 模块
+# 本仓库的 x86_64 / ramips 均无 NSS，去掉以免选中时被强拉不可用的 kmod；
+# 运行时 eqos 默认走 tc 软件限速，NSS 模式仅在 nss-ifb 存在时才会使用
+eqos_mk=feeds/luci/applications/luci-app-eqos/Makefile
+[ -f "$eqos_mk" ] && sed -i 's/ +kmod-qca-nss-drv-qdisc//; s/ +kmod-qca-nss-drv-igs//' "$eqos_mk"
+
 # 修改默认IP
 sed -i 's/192.168.1.1/192.168.123.1/g' package/base-files/files/bin/config_generate
 
