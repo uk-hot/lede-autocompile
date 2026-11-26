@@ -33,21 +33,34 @@ pkg_bump() {
 	echo "$(basename "$(dirname "$1")") -> $2"
 }
 
-# 升级 tailscale 至上游最新 release
+# 升级 tailscale 至 feed 自带 golang 能编译的最新稳定版
 # lede packages feed 长期停在旧版 (1.84.2)，每次编译都不会自动更新
-# 若新版 go.mod 要求的 Go 高于 feed 自带 golang，则保留 feed 版本以免编译失败
+# 上游最新版的 go.mod 常要求比 feed 更新的 Go，此时不能退回 feed 的 1.84.2
+# (会让已装新版的路由器降级 20 多个版本)，而是往前找 Go 要求满足的最新稳定版
+# (tailscale 稳定版次版本号为偶数，且不超过 releases/latest)
+ver_le() { [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -n1)" = "$2" ]; }
 ts_mk=feeds/packages/net/tailscale/Makefile
-ts_ver=$(curl -fsSI https://github.com/tailscale/tailscale/releases/latest | grep -i '^location:' | sed 's#.*/tag/v##' | tr -d '\r')
-if [ -f "$ts_mk" ] && [ -n "$ts_ver" ]; then
+ts_latest=$(curl -fsSI https://github.com/tailscale/tailscale/releases/latest | grep -i '^location:' | sed 's#.*/tag/v##' | tr -d '\r')
+if [ -f "$ts_mk" ] && [ -n "$ts_latest" ]; then
 	go_mk=feeds/packages/lang/golang/golang/Makefile
 	go_have=$(awk -F ':=' '/^GO_VERSION_MAJOR_MINOR/{m=$2} /^GO_VERSION_PATCH/{p=$2} END{print m (p ? "." p : "")}' "$go_mk")
-	go_need=$(curl -fsSL "https://raw.githubusercontent.com/tailscale/tailscale/v$ts_ver/go.mod" | awk '/^go /{print $2}')
-	if [ -n "$go_need" ] && [ "$(printf '%s\n%s\n' "$go_need" "$go_have" | sort -V | tail -n1)" = "$go_have" ]; then
-		if ts_hash=$(set -o pipefail; curl -fsSL "https://codeload.github.com/tailscale/tailscale/tar.gz/v$ts_ver" | sha256sum | cut -d ' ' -f1); then
-			pkg_bump "$ts_mk" "$ts_ver" "$ts_hash"
+	ts_ver=
+	for v in $(git ls-remote --tags --refs https://github.com/tailscale/tailscale 'v1.*' |
+		sed 's#.*refs/tags/v##' | grep -E '^1\.[0-9]*[02468]\.[0-9]+$' | sort -Vr | head -n 15); do
+		ver_le "$v" "$ts_latest" || continue
+		go_need=$(curl -fsSL "https://raw.githubusercontent.com/tailscale/tailscale/v$v/go.mod" | awk '/^go /{print $2}')
+		[ -n "$go_need" ] || continue
+		if ver_le "$go_need" "$go_have"; then
+			ts_ver=$v
+			break
 		fi
+		echo "tailscale $v 需要 Go $go_need，feed 仅有 Go $go_have，尝试更早版本"
+	done
+	if [ -n "$ts_ver" ] &&
+		ts_hash=$(set -o pipefail; curl -fsSL "https://codeload.github.com/tailscale/tailscale/tar.gz/v$ts_ver" | sha256sum | cut -d ' ' -f1); then
+		pkg_bump "$ts_mk" "$ts_ver" "$ts_hash"
 	else
-		echo "tailscale $ts_ver 需要 Go $go_need，feed 仅有 Go $go_have，保留 feed 版本"
+		echo "未找到可用 Go $go_have 编译的 tailscale 新版，保留 feed 版本"
 	fi
 fi
 
