@@ -97,6 +97,13 @@ pkg_bump feeds/packages/net/miniupnpd-iptables/Makefile 2.3.11 91994b127da735b2c
 eqos_mk=feeds/luci/applications/luci-app-eqos/Makefile
 [ -f "$eqos_mk" ] && sed -i 's/ +kmod-qca-nss-drv-qdisc//; s/ +kmod-qca-nss-drv-igs//' "$eqos_mk"
 
+# lede 的 include/netfilter.mk 漏了 NFT_CONNLIMIT 定义，kmod-nft-connlimit 编出来是空包，
+# 内核里没有 nft_connlimit，fw4 下 `ct count` 报 No such file or directory（2026-11-26 实测）。
+# 照上游 OpenWrt 补上（落在 net/netfilter/nft_connlimit.ko，并生成 KCONFIG_NFT_CONNLIMIT）
+nf_mk=include/netfilter.mk
+grep -q 'NFT_CONNLIMIT' "$nf_mk" || \
+	sed -i '/nf_add,NFT_FIB,CONFIG_NFT_FIB,/i $(eval $(if $(NF_KMOD),$(call nf_add,NFT_CONNLIMIT,CONFIG_NFT_CONNLIMIT, $(P_XT)nft_connlimit),))' "$nf_mk"
+
 # 修改默认IP
 sed -i 's/192.168.1.1/192.168.123.1/g' package/base-files/files/bin/config_generate
 
